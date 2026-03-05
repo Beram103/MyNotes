@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notepad & Scribble</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Special+Elite&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1008;
+      --paper: #f5f0e8;
+      --paper-dark: #ede6d5;
+      --ruled: #c8bfa8;
+      --accent: #b04a1c;
+      --accent2: #2a6b4a;
+      --tab-bg: #e8e0cc;
+      --shadow: rgba(0,0,0,0.18);
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: #2c2318;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, #3d2f1e 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, #1e2d1a 0%, transparent 50%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+      color: var(--ink);
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .brand {
+      font-family: 'Special Elite', cursive;
+      color: #f5f0e8;
+      font-size: 1.5rem;
+      letter-spacing: 0.04em;
+      opacity: 0.9;
+    }
+    .brand span { color: #e8824a; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      align-items: flex-end;
+    }
+    .tab {
+      font-family: 'Special Elite', cursive;
+      font-size: 0.82rem;
+      padding: 7px 18px 9px;
+      border: none;
+      border-radius: 6px 6px 0 0;
+      background: #4a3828;
+      color: #c8b89a;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.05em;
+    }
+    .tab:hover { background: #5e4a35; color: #f0e8d8; }
+    .tab.active {
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 0.88rem;
+      padding-bottom: 13px;
+    }
+
+    /* ── NOTEBOOK ── */
+    .notebook {
+      width: 100%;
+      max-width: 860px;
+      background: var(--paper);
+      border-radius: 0 8px 8px 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* spiral binding decoration */
+    .notebook::before {
+      content: '';
+      position: absolute;
+      left: 56px;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 26px,
+        #c0a888 26px,
+        #c0a888 30px
+      );
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: flex; flex-direction: column; }
+
+    /* ── NOTE PANEL ── */
+    .note-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px 10px 72px;
+      border-bottom: 2px solid var(--ruled);
+      background: var(--paper-dark);
+    }
+    .note-title-input {
+      font-family: 'Special Elite', cursive;
+      font-size: 1.25rem;
+      border: none;
+      background: transparent;
+      color: var(--ink);
+      flex: 1;
+      outline: none;
+      letter-spacing: 0.04em;
+    }
+    .note-title-input::placeholder { color: #b8a888; }
+
+    .note-meta {
+      font-size: 0.7rem;
+      color: #a09070;
+      white-space: nowrap;
+    }
+
+    .ruled-area {
+      position: relative;
+      padding: 0 28px 0 72px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          var(--paper) 0px,
+          var(--paper) 31px,
+          var(--ruled) 31px,
+          var(--ruled) 32px
+        );
+    }
+
+    .note-textarea {
+      width: 100%;
+      min-height: 420px;
+      border: none;
+      background: transparent;
+      font-family: 'Caveat', cursive;
+      font-size: 1.22rem;
+      line-height: 32px;
+      color: #1a0f05;
+      resize: none;
+      outline: none;
+      padding: 6px 0;
+      caret-color: var(--accent);
+    }
+    .note-textarea::placeholder { color: #c8b898; }
+
+    .note-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px 12px 72px;
+      background: var(--paper-dark);
+      border-top: 1px solid var(--ruled);
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1.5px solid;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+    }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #933f18; }
+    .btn-secondary {
+      background: transparent;
+      border-color: #b8a888;
+      color: #6a5840;
+    }
+    .btn-secondary:hover { background: var(--paper-dark); border-color: #8a7860; }
+    .btn-green {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      color: #fff;
+    }
+    .btn-green:hover { background: #1e5038; }
+
+    .font-select {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      padding: 5px 8px;
+      border: 1.5px solid #b8a888;
+      border-radius: 4px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      outline: none;
+    }
+
+    .spacer { flex: 1; }
+
+    /* ── NOTES LIST ── */
+    .notes-list-wrap {
+      padding: 16px 24px 16px 72px;
+      max-height: 200px;
+      overflow-y: auto;
+      border-bottom: 2px solid var(--ruled);
+      background: var(--paper-dark);
+    }
+    .notes-list-wrap h3 {
+      font-family: 'Special Elite', cursive;
+      font-size: 0.78rem;
+      color: #8a7050;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .notes-list { display: flex; flex-direction: column; gap: 4px; }
+    .note-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .note-item:hover { background: #e8dfc8; }
+    .note-item.current { background: #ddd4b8; }
+    .note-item-title {
+      font-family: 'Caveat', cursive;
+      font-size: 1rem;
+      flex: 1;
+      color: var(--ink);
+    }
+    .note-item-date { font-size: 0.65rem; color: #a09070; }
+    .note-item-del {
+      font-size: 0.7rem;
+      color: #c08070;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .note-item:hover .note-item-del { opacity: 1; }
+    .note-item-del:hover { background: #f0d8d0; }
+
+    /* ── SCRIBBLE PANEL ── */
+    .canvas-wrap {
+      position: relative;
+      background: var(--paper);
+      padding-left: 58px;
+    }
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 10px 72px;
+      background: var(--paper-dark);
+      border-bottom: 2px solid var(--ruled);
+      flex-wrap: wrap;
+    }
+    .color-btn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .color-btn:hover, .color-btn.active { transform: scale(1.25); border-color: #1a1008; }
+
+    .tool-btn {
+      font-size: 1rem;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      border: 1.5px solid #c8b898;
+      background: var(--paper);
+      cursor: pointer;
+      transition: all 0.12s;
+      color: var(--ink);
+    }
+    .tool-btn:hover { background: var(--paper-dark); }
+    .tool-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+    input[type=range].size-slider {
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: #c8b898;
+      outline: none;
+      width: 80px;
+    }
+    input[type=range].size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    #scribble-canvas {
+      display: block;
+      width: 100%;
+      height: 500px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .canvas-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px 12px 72px;
+      background: var(--paper-dark);
+      border-top: 1px solid var(--ruled);
+    }
+
+    /* ── PRINT STYLES ── */
+    @media print {
+      body { background: white !important; padding: 0; }
+      .topbar, .tabs, .tab, .note-toolbar, .canvas-toolbar,
+      .canvas-footer, .notes-list-wrap, .note-header .note-meta,
+      .btn, .font-select { display: none !important; }
+      .notebook { box-shadow: none; border-radius: 0; max-width: 100%; }
+      .notebook::before { display: none; }
+      .note-header { padding-left: 20px; }
+      .ruled-area { padding-left: 20px; }
+      .note-textarea { min-height: auto; }
+      #print-target-note { display: flex !important; }
+      #print-target-canvas { display: none; }
+      .panel { display: none !important; }
+      .panel#panel-note { display: flex !important; }
+    }
+    @media print {
+      body.printing-canvas .panel#panel-note { display: none !important; }
+      body.printing-canvas .panel#panel-draw { display: flex !important; }
+      body.printing-canvas .canvas-toolbar,
+      body.printing-canvas .canvas-footer { display: none !important; }
+    }
+
+    /* ── STICKY NOTES (bonus) ── */
+    .stickies-area {
+      padding: 20px 24px 24px 72px;
+      min-height: 460px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0px, transparent 31px,
+          var(--ruled) 31px, var(--ruled) 32px
+        );
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      align-content: flex-start;
+    }
+    .sticky {
+      width: 170px;
+      min-height: 160px;
+      padding: 12px;
+      font-family: 'Caveat', cursive;
+      font-size: 1.05rem;
+      border: none;
+      resize: none;
+      box-shadow: 3px 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12);
+      border-radius: 2px;
+      cursor: text;
+      outline: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      line-height: 1.5;
+      position: relative;
+    }
+    .sticky:hover { transform: rotate(0deg) scale(1.03); box-shadow: 5px 6px 20px rgba(0,0,0,0.22); }
+    .sticky-0 { background: #fdf98c; transform: rotate(-1.5deg); }
+    .sticky-1 { background: #b2f5b2; transform: rotate(1deg); }
+    .sticky-2 { background: #ffd6b2; transform: rotate(-0.5deg); }
+    .sticky-3 { background: #c2e4ff; transform: rotate(1.5deg); }
+    .sticky-4 { background: #f5c2ff; transform: rotate(-1deg); }
+
+    .stickies-footer {
+      display: flex; gap: 8px; padding: 10px 20px 12px 72px;
+      background: var(--paper-dark);
+      border-top: 1px solid var(--ruled);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c8b898; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">✒ <span>Paper</span>Stack</div>
+  <div style="font-size:0.7rem;color:#8a7060;font-family:'DM Mono',monospace;">your offline notebook</div>
+</div>
+
+<div style="width:100%;max-width:860px;">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('note', this)">📝 Notes</button>
+    <button class="tab" onclick="switchTab('draw', this)">✏️ Scribble</button>
+    <button class="tab" onclick="switchTab('sticky', this)">🟡 Stickies</button>
+  </div>
+</div>
+
+<div class="notebook">
+
+  <!-- ══ NOTES PANEL ══ -->
+  <div class="panel active" id="panel-note">
+
+    <div class="notes-list-wrap" id="notes-list-wrap">
+      <h3>Saved Notes</h3>
+      <div class="notes-list" id="notes-list"></div>
+    </div>
+
+    <div class="note-header">
+      <input class="note-title-input" id="note-title" type="text" placeholder="Untitled note…" />
+      <span class="note-meta" id="note-meta">—</span>
+    </div>
+
+    <div class="ruled-area">
+      <textarea class="note-textarea" id="note-body"
+        placeholder="Start writing…&#10;&#10;Use the toolbar below to save, clear or print your note."></textarea>
+    </div>
+
+    <div class="note-toolbar">
+      <select class="font-select" onchange="changeFont(this.value)" id="font-picker">
+        <option value="'Caveat', cursive">Handwritten</option>
+        <option value="'Special Elite', cursive">Typewriter</option>
+        <option value="'DM Mono', monospace">Mono</option>
+        <option value="Georgia, serif">Serif</option>
+      </select>
+      <button class="btn btn-primary" onclick="saveNote()">💾 Save</button>
+      <button class="btn btn-secondary" onclick="newNote()">＋ New</button>
+      <div class="spacer"></div>
+      <button class="btn btn-green" onclick="printNote()">🖨 Print</button>
+    </div>
+  </div>
+
+  <!-- ══ DRAW PANEL ══ -->
+  <div class="panel" id="panel-draw">
+    <div class="canvas-toolbar">
+      <!-- colors -->
+      <div class="color-btn active" style="background:#1a1008" data-color="#1a1008" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#b04a1c" data-color="#b04a1c" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#2a6b4a" data-color="#2a6b4a" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#1e40af" data-color="#1e40af" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#7c3aed" data-color="#7c3aed" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#be185d" data-color="#be185d" onclick="setColor(this)"></div>
+      <div class="color-btn" style="background:#f5f0e8" data-color="#f5f0e8" style="border:1.5px solid #c8b898" onclick="setColor(this)"></div>
+      <div style="width:1px;height:24px;background:#c8b898;margin:0 4px"></div>
+      <!-- tools -->
+      <button class="tool-btn active" id="btn-pen" onclick="setTool('pen',this)" title="Pen">✒</button>
+      <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser',this)" title="Eraser">◻</button>
+      <div style="width:1px;height:24px;background:#c8b898;margin:0 4px"></div>
+      <input type="range" class="size-slider" id="brush-size" min="1" max="40" value="4" />
+      <span style="font-size:0.7rem;color:#8a7060;min-width:28px" id="size-label">4px</span>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="scribble-canvas"></canvas>
+    </div>
+
+    <div class="canvas-footer">
+      <button class="btn btn-secondary" onclick="clearCanvas()">🗑 Clear</button>
+      <button class="btn btn-secondary" onclick="undoCanvas()">↩ Undo</button>
+      <div class="spacer"></div>
+      <button class="btn btn-green" onclick="printCanvas()">🖨 Print</button>
+      <button class="btn btn-primary" onclick="downloadCanvas()">⬇ Save PNG</button>
+    </div>
+  </div>
+
+  <!-- ══ STICKIES PANEL ══ -->
+  <div class="panel" id="panel-sticky">
+    <div class="stickies-area" id="stickies-area"></div>
+    <div class="stickies-footer">
+      <button class="btn btn-primary" onclick="addSticky()">＋ Add Sticky</button>
+      <div class="spacer"></div>
+      <button class="btn btn-green" onclick="printStickies()">🖨 Print Stickies</button>
+    </div>
+  </div>
+
+</div><!-- /notebook -->
+
+<script>
+/* ════════════════════════════════
+   TABS
+════════════════════════════════ */
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'draw') initCanvas();
+}
+
+/* ════════════════════════════════
+   NOTES
+════════════════════════════════ */
+let notes = JSON.parse(localStorage.getItem('paperstack-notes') || '[]');
+let currentId = null;
+
+function saveNotes() { localStorage.setItem('paperstack-notes', JSON.stringify(notes)); }
+
+function renderNotesList() {
+  const list = document.getElementById('notes-list');
+  if (!notes.length) { list.innerHTML = '<div style="font-size:0.8rem;color:#a09070;padding:4px 0">No saved notes yet.</div>'; return; }
+  list.innerHTML = notes.map((n,i) => `
+    <div class="note-item ${n.id===currentId?'current':''}" onclick="loadNote('${n.id}')">
+      <span class="note-item-title">${n.title || 'Untitled'}</span>
+      <span class="note-item-date">${n.date}</span>
+      <button class="note-item-del" onclick="deleteNote(event,'${n.id}')">✕</button>
+    </div>`).join('');
+}
+
+function saveNote() {
+  const title = document.getElementById('note-title').value.trim() || 'Untitled';
+  const body = document.getElementById('note-body').value;
+  const now = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  if (currentId) {
+    const n = notes.find(x => x.id === currentId);
+    if (n) { n.title = title; n.body = body; n.date = now; }
+  } else {
+    currentId = Date.now().toString();
+    notes.unshift({ id: currentId, title, body, date: now });
+  }
+  saveNotes(); renderNotesList();
+  document.getElementById('note-meta').textContent = 'Saved ' + now;
+}
+
+function newNote() {
+  currentId = null;
+  document.getElementById('note-title').value = '';
+  document.getElementById('note-body').value = '';
+  document.getElementById('note-meta').textContent = '—';
+  renderNotesList();
+}
+
+function loadNote(id) {
+  const n = notes.find(x => x.id === id);
+  if (!n) return;
+  currentId = n.id;
+  document.getElementById('note-title').value = n.title;
+  document.getElementById('note-body').value = n.body;
+  document.getElementById('note-meta').textContent = 'Saved ' + n.date;
+  renderNotesList();
+}
+
+function deleteNote(e, id) {
+  e.stopPropagation();
+  notes = notes.filter(x => x.id !== id);
+  if (currentId === id) newNote();
+  saveNotes(); renderNotesList();
+}
+
+function printNote() {
+  window.print();
+}
+
+function changeFont(val) {
+  document.getElementById('note-body').style.fontFamily = val;
+}
+
+renderNotesList();
+
+/* ════════════════════════════════
+   CANVAS / SCRIBBLE
+════════════════════════════════ */
+let canvas, ctx, painting = false, tool = 'pen', color = '#1a1008', brushSize = 4;
+let history = [];
+
+function initCanvas() {
+  canvas = document.getElementById('scribble-canvas');
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth - 58;
+  canvas.height = 500;
+  ctx = canvas.getContext('2d');
+  if (!canvas._init) {
+    ctx.fillStyle = '#f5f0e8';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    pushHistory();
+    canvas._init = true;
+  }
+  // events
+  canvas.onmousedown = startDraw;
+  canvas.onmousemove = draw;
+  canvas.onmouseup = stopDraw;
+  canvas.onmouseleave = stopDraw;
+  canvas.ontouchstart = e => { e.preventDefault(); startDraw(e.touches[0]); };
+  canvas.ontouchmove = e => { e.preventDefault(); draw(e.touches[0]); };
+  canvas.ontouchend = stopDraw;
+}
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function startDraw(e) {
+  painting = true;
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+
+function draw(e) {
+  if (!painting) return;
+  const p = getPos(e);
+  ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = brushSize;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+
+function stopDraw() {
+  if (painting) { painting = false; pushHistory(); }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function pushHistory() {
+  if (!ctx) return;
+  history.push(canvas.toDataURL());
+  if (history.length > 30) history.shift();
+}
+
+function undoCanvas() {
+  if (history.length <= 1) return;
+  history.pop();
+  const img = new Image();
+  img.src = history[history.length - 1];
+  img.onload = () => ctx.drawImage(img, 0, 0);
+}
+
+function clearCanvas() {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  pushHistory();
+}
+
+function setColor(el) {
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  color = el.dataset.color;
+  if (tool === 'eraser') setTool('pen', document.getElementById('btn-pen'));
+}
+
+function setTool(t, el) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+document.getElementById('brush-size').addEventListener('input', function() {
+  brushSize = +this.value;
+  document.getElementById('size-label').textContent = this.value + 'px';
+});
+
+function downloadCanvas() {
+  const link = document.createElement('a');
+  link.download = 'scribble.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function printCanvas() {
+  const img = canvas.toDataURL();
+  const w = window.open('', '_blank');
+  w.document.write(`<html><body style="margin:0"><img src="${img}" style="max-width:100%" /></body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 400);
+}
+
+/* ════════════════════════════════
+   STICKIES
+════════════════════════════════ */
+let stickies = JSON.parse(localStorage.getItem('paperstack-stickies') || '[]');
+
+function renderStickies() {
+  const area = document.getElementById('stickies-area');
+  area.innerHTML = stickies.map((s,i) => `
+    <textarea class="sticky sticky-${i%5}"
+      onblur="saveSticky(${i},this.value)"
+      placeholder="Write a sticky note…">${s}</textarea>`).join('');
+}
+
+function addSticky() {
+  stickies.push('');
+  localStorage.setItem('paperstack-stickies', JSON.stringify(stickies));
+  renderStickies();
+  const els = document.querySelectorAll('.sticky');
+  els[els.length-1]?.focus();
+}
+
+function saveSticky(i, val) {
+  stickies[i] = val;
+  localStorage.setItem('paperstack-stickies', JSON.stringify(stickies));
+}
+
+function printStickies() {
+  window.print();
+}
+
+if (!stickies.length) { stickies = ['', '', '']; }
+renderStickies();
+</script>
+</body>
+</html>
